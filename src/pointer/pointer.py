@@ -10,6 +10,9 @@ _MAX_ROLL_DEG  = 45.0  # 手首左右回転の最大角
 _MAX_PITCH_DEG = 30.0  # 手首上下屈曲の最大角
 
 
+_EMA_ALPHA = 0.2  # 小さいほど滑らか（0.1〜0.3が目安）
+
+
 class PointerController:
     def __init__(self, sample_rate: float = 30.0, beta: float = 0.1):
         self._madgwick = MadgwickFilter(beta=beta, sample_rate=sample_rate)
@@ -30,9 +33,11 @@ class PointerController:
         self._roll  = math.degrees(roll)
         self._pitch = math.degrees(pitch)
 
-        # 角度を [-1, -1] に正規化して画面座標へ
-        self._px = -self._roll / _MAX_ROLL_DEG
-        self._py = -self._pitch / _MAX_PITCH_DEG
+        # 角度を [-1, +1] に正規化してEMAで平滑化
+        raw_px = -self._roll  / _MAX_ROLL_DEG
+        raw_py = -self._pitch / _MAX_PITCH_DEG
+        self._px = self._px * (1 - _EMA_ALPHA) + raw_px * _EMA_ALPHA
+        self._py = self._py * (1 - _EMA_ALPHA) + raw_py * _EMA_ALPHA
 
         return self._px, self._py
 
