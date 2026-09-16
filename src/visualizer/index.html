@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IMU 3D Viewer</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0e1a; overflow: hidden; font-family: 'Courier New', monospace; }
+canvas { display: block; }
+
+#hud {
+  position: fixed; top: 20px; left: 20px;
+  color: #7090b0; font-size: 11px; line-height: 1.8;
+  background: rgba(0,0,0,0.4); padding: 12px 16px; border-radius: 8px;
+  border: 1px solid rgba(80,140,200,0.15);
+}
+#hud .title { color: #90c8f0; font-size: 13px; margin-bottom: 8px; letter-spacing: 0.1em; }
+#hud .val { color: #c0e0ff; }
+
+#status {
+  position: fixed; top: 20px; right: 20px;
+  font-size: 11px; display: flex; align-items: center; gap: 8px; color: #506070;
+}
+.dot { width: 8px; height: 8px; border-radius: 50%; background: #304050; }
+.dot.live { background: #40c060; box-shadow: 0 0 8px #40c06088; }
+.dot.demo { background: #e08030; }
+</style>
+</head>
+<body>
+<div id="hud">
+  <div class="title">IMU SENSOR</div>
+  <div>Roll  <span class="val" id="v-roll">+0.0°</span></div>
+  <div>Pitch <span class="val" id="v-pitch">+0.0°</span></div>
+  <div>Yaw   <span class="val" id="v-yaw">+0.0°</span></div>
+</div>
+<div id="status">
+  <div class="dot" id="dot"></div>
+  <span id="status-text">DEMO</span>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ── Scene setup ───────────────────────────────────────────
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(devicePixelRatio);
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a0e1a);
+scene.fog = new THREE.Fog(0x0a0e1a, 8, 20);
+
+const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 100);
+camera.position.set(0, 3, 7);
+camera.lookAt(0, 0, 0);
+
+// Lights
+scene.add(new THREE.AmbientLight(0x304060, 1.2));
+const dir = new THREE.DirectionalLight(0x80b0ff, 1.5);
+dir.position.set(3, 6, 4);
+dir.castShadow = true;
+scene.add(dir);
+scene.add(new THREE.DirectionalLight(0x204020, 0.6).position.set(-3, -2, -3));
+
+// ── Board model ───────────────────────────────────────────
+const board = new THREE.Group();
+scene.add(board);
+
+function box(w, h, d, color, metalness = 0.3, roughness = 0.6) {
+  return new THREE.Mesh(
+    new THREE.BoxGeometry(w, h, d),
+    new THREE.MeshStandardMaterial({ color, metalness, roughness })
+  );
+}
+
+// PCB
+const pcb = box(4.8, 0.12, 1.8, 0x1a5c2a, 0.1, 0.8);
+board.add(pcb);
+const TOP = 0.06;
+
+// NINA-W102 モジュール（白）
+const nina = box(1.6, 0.1, 1.2, 0xd0d8e0, 0.2, 0.5);
+nina.position.set(-0.8, TOP + 0.05, 0);
+board.add(nina);
+
+// IMUチップ
+const imu = box(0.4, 0.06, 0.4, 0x222222, 0.6, 0.3);
+imu.position.set(1.4, TOP + 0.03, 0);
+board.add(imu);
+
+// USB-C
+const usb = box(0.5, 0.18, 0.25, 0xb0b8c0, 0.7, 0.2);
+usb.position.set(2.5, 0, 0);
+board.add(usb);
+
+// LED
+const led = box(0.12, 0.08, 0.12, 0x00ff80, 0.0, 0.2);
+led.position.set(1.8, TOP + 0.04, 0.5);
+board.add(led);
+
+// Pins（両側）
+const pinMat = new THREE.MeshStandardMaterial({ color: 0xc07830, metalness: 0.8, roughness: 0.2 });
+for (let i = 0; i < 15; i++) {
+  const x = -2.0 + i * (4.0 / 14);
+  [-0.97, 0.97].forEach(z => {
+    const pin = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.22, 0.06), pinMat);
+    pin.position.set(x, 0, z);
+    board.add(pin);
+  });
+}
+
+// ── WebSocket ─────────────────────────────────────────────
+let liveQ = null;
+const ws = new WebSocket('ws://localhost:8765');
+const dot = document.getElementById('dot');
+const statusText = document.getElementById('status-text');
+
+ws.onopen = () => {
+  dot.className = 'dot live';
+  statusText.textContent = 'BLE LIVE';
+};
+ws.onclose = ws.onerror = () => {
+  dot.className = 'dot demo';
+  statusText.textContent = 'DEMO';
+  liveQ = null;
+};
+
+// Madgwick: q0=w, q1=x, q2=y, q3=z
+// Three.js Quaternion(x,y,z,w)
+// Madgwick Z-down → Three.js Y-up: X軸-90°補正
+const correction = new THREE.Quaternion().setFromAxisAngle(
+  new THREE.Vector3(1, 0, 0), -Math.PI / 2
+);
+ws.onmessage = e => {
+  const d = JSON.parse(e.data);
+  liveQ = new THREE.Quaternion(d.q1, d.q2, d.q3, d.q0).premultiply(correction);
+};
+
+// ── Animation ─────────────────────────────────────────────
+const euler = new THREE.Euler();
+const targetQ = new THREE.Quaternion();
+let t = 0;
+
+function fmt(v) { return (v >= 0 ? '+' : '') + v.toFixed(1) + '°'; }
+
+function animate() {
+  requestAnimationFrame(animate);
+  t += 0.006;
+
+  if (liveQ) {
+    board.quaternion.slerp(liveQ, 0.2);
+  } else {
+    // デモ: sin波で往復
+    targetQ.setFromEuler(new THREE.Euler(
+      Math.sin(t * 0.61) * 0.5,
+      Math.sin(t * 0.28) * 1.0,
+      Math.sin(t * 0.43) * 0.35
+    ));
+    board.quaternion.slerp(targetQ, 0.05);
+  }
+
+  euler.setFromQuaternion(board.quaternion, 'ZYX');
+  document.getElementById('v-roll').textContent  = fmt(THREE.MathUtils.radToDeg(euler.z));
+  document.getElementById('v-pitch').textContent = fmt(THREE.MathUtils.radToDeg(euler.x));
+  document.getElementById('v-yaw').textContent   = fmt(THREE.MathUtils.radToDeg(euler.y));
+
+  renderer.render(scene, camera);
+}
+animate();
+
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
