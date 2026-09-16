@@ -1,7 +1,7 @@
 """BLE → Madgwick → WebSocket で四元数をブラウザに送信するサーバー.
 
 起動:
-    python3 src/main_3d.py
+    python3 src/viewer3d/main.py
 """
 
 import asyncio

@@ -113,6 +113,7 @@ for (let i = 0; i < 15; i++) {
 
 // ── WebSocket ─────────────────────────────────────────────
 let liveQ = null;
+let liveAngles = null; // 物理角度（補正前のMadgwick四元数から直接計算）
 const ws = new WebSocket('ws://localhost:8765');
 const dot = document.getElementById('dot');
 const statusText = document.getElementById('status-text');
@@ -125,17 +126,29 @@ ws.onclose = ws.onerror = () => {
   dot.className = 'dot demo';
   statusText.textContent = 'DEMO';
   liveQ = null;
+  liveAngles = null;
 };
 
 // Madgwick: q0=w, q1=x, q2=y, q3=z
 // Three.js Quaternion(x,y,z,w)
-// Madgwick Z-down → Three.js Y-up: X軸-90°補正
-const correction = new THREE.Quaternion().setFromAxisAngle(
-  new THREE.Vector3(1, 0, 0), -Math.PI / 2
-);
+// センサ軸(X=長辺, Y=短辺水平, Z=PCB上) → モデル軸(X=長辺, Y=PCB上, Z=短辺)
+// 共役変換 R*q*R⁻¹ で軸を正しくリマップ（identity時はボード水平のまま）
+const R    = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2);
+const Rinv = R.clone().conjugate();
+
 ws.onmessage = e => {
   const d = JSON.parse(e.data);
-  liveQ = new THREE.Quaternion(d.q1, d.q2, d.q3, d.q0).premultiply(correction);
+  const q0 = d.q0, q1 = d.q1, q2 = d.q2, q3 = d.q3;
+  // HUD用: 四元数からロール/ピッチ/ヨーを直接計算
+  liveAngles = {
+    roll:  THREE.MathUtils.radToDeg(Math.atan2(2*(q0*q1 + q2*q3), 1 - 2*(q1*q1 + q2*q2))),
+    pitch: THREE.MathUtils.radToDeg(Math.asin(Math.max(-1, Math.min(1, 2*(q0*q2 - q3*q1))))),
+    yaw:   THREE.MathUtils.radToDeg(Math.atan2(2*(q0*q3 + q1*q2), 1 - 2*(q2*q2 + q3*q3))),
+  };
+  // 3Dモデル用: 共役変換でセンサ軸 → モデル軸にリマップ
+  // q3(センサZ=ヨー軸)を否定してヨー回転方向を正しく合わせる
+  const raw = new THREE.Quaternion(q1, -q2, -q3, q0);
+  liveQ = R.clone().multiply(raw).multiply(Rinv);
 };
 
 // ── Animation ─────────────────────────────────────────────
@@ -151,6 +164,10 @@ function animate() {
 
   if (liveQ) {
     board.quaternion.slerp(liveQ, 0.2);
+    // BLEライブ: 補正前の物理角度をそのまま表示
+    document.getElementById('v-roll').textContent  = fmt(liveAngles.roll);
+    document.getElementById('v-pitch').textContent = fmt(liveAngles.pitch);
+    document.getElementById('v-yaw').textContent   = fmt(liveAngles.yaw);
   } else {
     // デモ: sin波で往復
     targetQ.setFromEuler(new THREE.Euler(
@@ -159,12 +176,11 @@ function animate() {
       Math.sin(t * 0.43) * 0.35
     ));
     board.quaternion.slerp(targetQ, 0.05);
+    euler.setFromQuaternion(board.quaternion, 'ZYX');
+    document.getElementById('v-roll').textContent  = fmt(THREE.MathUtils.radToDeg(euler.z));
+    document.getElementById('v-pitch').textContent = fmt(THREE.MathUtils.radToDeg(euler.x));
+    document.getElementById('v-yaw').textContent   = fmt(THREE.MathUtils.radToDeg(euler.y));
   }
-
-  euler.setFromQuaternion(board.quaternion, 'ZYX');
-  document.getElementById('v-roll').textContent  = fmt(THREE.MathUtils.radToDeg(euler.z));
-  document.getElementById('v-pitch').textContent = fmt(THREE.MathUtils.radToDeg(euler.x));
-  document.getElementById('v-yaw').textContent   = fmt(THREE.MathUtils.radToDeg(euler.y));
 
   renderer.render(scene, camera);
 }
