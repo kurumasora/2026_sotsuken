@@ -7,11 +7,14 @@ import pygame
 
 from src.pointer import PointerController
 
-_BG      = (20, 20, 30)
-_POINTER = (80, 160, 255)
-_TEXT    = (120, 120, 140)
+_BG      = (255, 255, 255)
+_POINTER = (0, 0, 0)
+_TEXT    = (80, 80, 80)
 _GREEN   = (60, 200, 100)
-_YELLOW  = (200, 160, 60)
+_ORANGE  = (255, 140, 0)
+
+_INDICATOR_POS    = (20, 20)
+_INDICATOR_RADIUS = 10
 
 # px が [-1, +1] → 画面幅/高さにマッピング
 _HALF_W = 400  # px=±1 が画面端
@@ -57,9 +60,12 @@ def run(data_queue: "queue.Queue") -> None:
 
         screen.fill(_BG)
         pygame.draw.circle(screen, _POINTER, (draw_x, draw_y), 20)
-        pygame.draw.circle(screen, _GREEN if connected else _YELLOW, (16, 16), 7)
-        screen.blit(font.render(
-            "BLE: Connected" if connected else "BLE: Waiting...", True, _TEXT), (28, 8))
+        pygame.draw.circle(
+            screen,
+            _GREEN if connected else _ORANGE,
+            _INDICATOR_POS,
+            _INDICATOR_RADIUS,
+        )
 
         if connected:
             roll, pitch = pointer.angles
