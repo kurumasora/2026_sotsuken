@@ -9,7 +9,7 @@
 
 BLE接続して6軸データを受信し，同じフレームから3手法を同時計算してCSVに保存.
 
-出力先: ~/myo2/data/comparison_YYYYMMDD_HHMMSS/comparison.csv
+出力先: ~/myo2/data/compare_methods/comparison_YYYYMMDD_HHMMSS.csv
 
 使い方:
     cd ~/myo2
@@ -34,7 +34,7 @@ load_dotenv()
 CHARACTERISTIC_UUID = os.getenv('CHARACTERISTIC_UUID')
 DEVICE_NAME         = os.getenv('DEVICE_NAME')
 
-DATA_BASE = Path.home() / "myo2" / "data"
+DATA_BASE = Path(__file__).resolve().parents[1] / "data" / "compare_methods"
 
 DT      = 1.0 / 30.0
 RAD2DEG = 180.0 / math.pi
@@ -127,9 +127,8 @@ async def main():
 
     print(f"デバイスが見つかりました: {device.name} ({device.address})")
 
-    out_dir = DATA_BASE / f"comparison_{time.strftime('%Y%m%d_%H%M%S')}"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    csv_path = out_dir / "comparison.csv"
+    DATA_BASE.mkdir(parents=True, exist_ok=True)
+    csv_path = DATA_BASE / f"comparison_{time.strftime('%Y%m%d_%H%M%S')}.csv"
 
     madgwick = MadgwickFilter(beta=0.1, sample_rate=30.0)
 

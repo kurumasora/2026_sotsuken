@@ -28,8 +28,8 @@ SERVICE_UUID        = os.getenv('SERVICE_UUID')
 CHARACTERISTIC_UUID = os.getenv('CHARACTERISTIC_UUID')
 DEVICE_NAME         = os.getenv('DEVICE_NAME')
 
-DATA_DIR = Path("data")
-DATA_DIR.mkdir(exist_ok=True)
+DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "ble_accel_logger"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 CSV_FILENAME = DATA_DIR / f"accel_log_{time.strftime('%Y%m%d_%H%M%S')}.csv"
 
