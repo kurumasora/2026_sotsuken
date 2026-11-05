@@ -2,9 +2,11 @@
 AccelPointer エントリポイント.
 
 使い方:
-    python src/main.py
+    python src/main.py           # EMA ON（デフォルト）
+    python src/main.py --no-ema  # EMA OFF
 """
 
+import argparse
 import asyncio
 import queue
 import sys
@@ -19,6 +21,10 @@ _QUEUE_MAXSIZE = 5
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="AccelPointer")
+    parser.add_argument("--no-ema", action="store_true", help="EMAフィルタを無効化する")
+    args = parser.parse_args()
+
     data_queue: queue.Queue = queue.Queue(maxsize=_QUEUE_MAXSIZE)
 
     def ble_thread() -> None:
@@ -35,7 +41,7 @@ def main() -> None:
     threading.Thread(target=ble_thread, daemon=True).start()
 
     try:
-        display.run(data_queue)
+        display.run(data_queue, ema_enabled=not args.no_ema)
     except KeyboardInterrupt:
         pass
 

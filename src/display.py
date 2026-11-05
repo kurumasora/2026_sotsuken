@@ -22,7 +22,7 @@ _HALF_W = 400  # px=±1 が画面端
 _HALF_H = 300
 
 
-def run(data_queue: "queue.Queue") -> None:
+def run(data_queue: "queue.Queue", ema_enabled: bool = True) -> None:
     pointer = PointerController(sample_rate=30.0)
     ema = Ema(alpha=0.2)
     px, py = 0.0, 0.0  # 最初のデータが届くまでは中央に表示
@@ -31,7 +31,8 @@ def run(data_queue: "queue.Queue") -> None:
     screen = pygame.display.set_mode((800, 600))
     pygame.display.set_caption("AccelPointer")
     clock = pygame.time.Clock()
-    font = pygame.font.SysFont(None, 24)
+    font       = pygame.font.SysFont(None, 24)
+    font_small = pygame.font.SysFont(None, 18)
 
     w, h = screen.get_size()
     cx, cy = w / 2.0, h / 2.0
@@ -56,12 +57,15 @@ def run(data_queue: "queue.Queue") -> None:
             connected = True
             ax, ay, az, gx, gy, gz = latest
             raw_px, raw_py = pointer.update(ax, ay, az, gx, gy, gz)
-            px, py = ema.filter(raw_px, raw_py)
+            px, py = ema.filter(raw_px, raw_py) if ema_enabled else (raw_px, raw_py)
 
         draw_x = max(0, min(w, int(cx + px * _HALF_W)))
         draw_y = max(0, min(h, int(cy + py * _HALF_H)))
 
         screen.fill(_BG)
+        ema_label = font_small.render(
+            "EMA: ON" if ema_enabled else "EMA: OFF", True, _TEXT)
+        screen.blit(ema_label, (w - ema_label.get_width() - 8, 8))
         pygame.draw.circle(screen, _POINTER, (draw_x, draw_y), 20)
         pygame.draw.circle(
             screen,
