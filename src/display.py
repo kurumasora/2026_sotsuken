@@ -21,8 +21,8 @@ _HALF_W = 400  # px=±1 が画面端
 _HALF_H = 300
 
 
-def run(data_queue: "queue.Queue", ema_enabled: bool = True) -> None:
-    pointer = PointerController(sample_rate=30.0)
+def run(data_queue: "queue.Queue", ema_enabled: bool = True, beta: float = 0.1) -> None:
+    pointer = PointerController(sample_rate=30.0, beta=beta)
     ema = Ema(alpha=0.2)
     px, py = 0.0, 0.0  # 最初のデータが届くまでは中央に表示
 
@@ -64,7 +64,7 @@ def run(data_queue: "queue.Queue", ema_enabled: bool = True) -> None:
 
         screen.fill(_BG)
         ema_label = font_small.render(
-            "EMA: ON" if ema_enabled else "EMA: OFF", True, _TEXT)
+            f"EMA: {'ON' if ema_enabled else 'OFF'}  β={beta}", True, _TEXT)
         screen.blit(ema_label, (w - ema_label.get_width() - 8, 8))
         pygame.draw.circle(screen, _POINTER, (draw_x, draw_y), 20)
         pygame.draw.circle(

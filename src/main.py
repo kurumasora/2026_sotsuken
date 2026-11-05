@@ -23,6 +23,7 @@ _QUEUE_MAXSIZE = 5
 def main() -> None:
     parser = argparse.ArgumentParser(description="AccelPointer")
     parser.add_argument("--no-ema", action="store_true", help="EMAフィルタを無効化する")
+    parser.add_argument("--beta", type=float, default=0.1, help="Madgwickフィルタのβ値（デフォルト: 0.1）")
     args = parser.parse_args()
 
     data_queue: queue.Queue = queue.Queue(maxsize=_QUEUE_MAXSIZE)
@@ -46,7 +47,7 @@ def main() -> None:
     t.start()
 
     try:
-        display.run(data_queue, ema_enabled=not args.no_ema)
+        display.run(data_queue, ema_enabled=not args.no_ema, beta=args.beta)
     except KeyboardInterrupt:
         pass
     finally:
