@@ -26,11 +26,13 @@ def main() -> None:
     args = parser.parse_args()
 
     data_queue: queue.Queue = queue.Queue(maxsize=_QUEUE_MAXSIZE)
+    stop_event_holder: list[asyncio.Event] = []
 
     def ble_thread() -> None:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         stop_event = asyncio.Event()
+        stop_event_holder.append(stop_event)
         try:
             loop.run_until_complete(ble_receiver.run(data_queue, stop_event))
         except Exception as e:
@@ -38,12 +40,20 @@ def main() -> None:
         finally:
             loop.close()
 
-    threading.Thread(target=ble_thread, daemon=True).start()
+    t = threading.Thread(target=ble_thread, daemon=True)
+    t.start()
 
     try:
         display.run(data_queue, ema_enabled=not args.no_ema)
     except KeyboardInterrupt:
         pass
+    finally:
+        # BLEスレッドに停止を通知して正常終了を待つ
+        if stop_event_holder:
+            stop_event_holder[0].get_loop().call_soon_threadsafe(
+                stop_event_holder[0].set
+            )
+        t.join(timeout=3.0)
 
 
 if __name__ == "__main__":
