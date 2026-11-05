@@ -1,18 +1,19 @@
 """キーマッパー — 正規化ポインタ位置 (px, py) を文字に変換する."""
 
-# デフォルトレイアウト: 5列×5行，アルファベット26文字＋記号
-DEFAULT_LAYOUT: list[list[str]] = [
-    ["A", "B", "C", "D", "E"],
-    ["F", "G", "H", "I", "J"],
-    ["K", "L", "M", "N", "O"],
-    ["P", "Q", "R", "S", "T"],
-    ["U", "V", "W", "X", "Y"],
+# JIS風レイアウト: 10列×5行（英数字＋基本記号）
+# 特殊キーは複数セルに割り当てて確定しやすくする
+JIS_LAYOUT: list[list[str]] = [
+    ["1",   "2",   "3",   "4",   "5",   "6",   "7",   "8",   "9",   "0"  ],
+    ["q",   "w",   "e",   "r",   "t",   "y",   "u",   "i",   "o",   "p"  ],
+    ["a",   "s",   "d",   "f",   "g",   "h",   "j",   "k",   "l",   ";"  ],
+    ["z",   "x",   "c",   "v",   "b",   "n",   "m",   ",",   ".",   "/"  ],
+    ["TAB", "SPC", "SPC", "SPC", "SPC", "BS",  "BS",  "BS",  "ENT", "ENT"],
 ]
 
 
 class KeyMapper:
     def __init__(self, layout: list[list[str]] | None = None) -> None:
-        self._layout = layout if layout is not None else DEFAULT_LAYOUT
+        self._layout = layout if layout is not None else JIS_LAYOUT
         self._rows = len(self._layout)
         self._cols = len(self._layout[0])
 
