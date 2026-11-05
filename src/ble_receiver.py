@@ -30,7 +30,7 @@ async def run(data_queue: queue.Queue, stop_event: asyncio.Event) -> None:
 
     def handler(sender, data: bytearray) -> None:
         if len(data) == 24:
-            values = struct.unpack("<ffffff", data)
+            values = struct.unpack("<ffffff", data) #24バイトで送信（0-11: ax, zy, az /12-23: gx, gy, gz ）
             if data_queue.full():
                 try:
                     data_queue.get_nowait()

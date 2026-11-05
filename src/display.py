@@ -5,11 +5,12 @@ import sys
 
 import pygame
 
+from src.noise_filter import Ema
 from src.pointer import PointerController
 
-_BG      = (255, 255, 255)
+_BG     = (255, 255, 255)
 _POINTER = (0, 0, 0)
-_TEXT    = (80, 80, 80)
+_TEXT    = (0, 0, 0)
 _GREEN   = (60, 200, 100)
 _ORANGE  = (255, 140, 0)
 
@@ -23,6 +24,8 @@ _HALF_H = 300
 
 def run(data_queue: "queue.Queue") -> None:
     pointer = PointerController(sample_rate=30.0)
+    ema = Ema(alpha=0.2)
+    px, py = 0.0, 0.0  # 最初のデータが届くまでは中央に表示
 
     pygame.init()
     screen = pygame.display.set_mode((800, 600))
@@ -52,9 +55,9 @@ def run(data_queue: "queue.Queue") -> None:
         if latest is not None:
             connected = True
             ax, ay, az, gx, gy, gz = latest
-            pointer.update(ax, ay, az, gx, gy, gz)
+            raw_px, raw_py = pointer.update(ax, ay, az, gx, gy, gz)
+            px, py = ema.filter(raw_px, raw_py)
 
-        px, py = pointer.position
         draw_x = max(0, min(w, int(cx + px * _HALF_W)))
         draw_y = max(0, min(h, int(cy + py * _HALF_H)))
 
