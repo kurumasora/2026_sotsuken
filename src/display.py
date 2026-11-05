@@ -1,7 +1,6 @@
 """手首の回転角（roll/pitch）を直接画面座標にマッピングするポインタ表示."""
 
 import queue
-import sys
 
 import pygame
 
@@ -38,13 +37,14 @@ def run(data_queue: "queue.Queue", ema_enabled: bool = True) -> None:
     cx, cy = w / 2.0, h / 2.0
     connected = False
 
-    while True:
+    running = True
+    while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                pygame.quit(); sys.exit()
+                running = False
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    pygame.quit(); sys.exit()
+                    running = False
 
         latest = None
         while True:
@@ -81,3 +81,5 @@ def run(data_queue: "queue.Queue", ema_enabled: bool = True) -> None:
 
         pygame.display.flip()
         clock.tick(60)
+
+    pygame.quit()
