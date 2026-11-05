@@ -2,9 +2,10 @@
 AccelPointer エントリポイント.
 
 使い方:
-    python src/main.py              # EMA ON（デフォルト）、β=0.1
-    python src/main.py --no-ema     # EMA OFF
-    python src/main.py --beta 0.05  # β=0.05、EMA 自動OFF
+    python src/main.py              # EMA ON、β=0.1
+    python src/main.py --no-ema     # EMA OFF、β=0.1
+    python src/main.py --beta 0.05  # EMA ON、β=0.05
+    python src/main.py --beta 0.05 --no-ema  # EMA OFF、β=0.05
 """
 
 import argparse
@@ -28,8 +29,7 @@ def main() -> None:
     args = parser.parse_args()
 
     beta = args.beta if args.beta is not None else 0.1
-    # --beta 指定時はEMAを自動でOFF（--no-emaでも明示的にOFF可）
-    ema_enabled = not args.no_ema and args.beta is None
+    ema_enabled = not args.no_ema
 
     data_queue: queue.Queue = queue.Queue(maxsize=_QUEUE_MAXSIZE)
     ble_loop_holder: list[asyncio.AbstractEventLoop] = []
