@@ -2,8 +2,9 @@
 AccelPointer エントリポイント.
 
 使い方:
-    python src/main.py           # EMA ON（デフォルト）
-    python src/main.py --no-ema  # EMA OFF
+    python src/main.py              # EMA ON（デフォルト）、β=0.1
+    python src/main.py --no-ema     # EMA OFF
+    python src/main.py --beta 0.05  # β=0.05、EMA 自動OFF
 """
 
 import argparse
@@ -23,8 +24,12 @@ _QUEUE_MAXSIZE = 5
 def main() -> None:
     parser = argparse.ArgumentParser(description="AccelPointer")
     parser.add_argument("--no-ema", action="store_true", help="EMAフィルタを無効化する")
-    parser.add_argument("--beta", type=float, default=0.1, help="Madgwickフィルタのβ値（デフォルト: 0.1）")
+    parser.add_argument("--beta", type=float, default=None, help="Madgwickフィルタのβ値（指定時はEMA自動OFF）")
     args = parser.parse_args()
+
+    beta = args.beta if args.beta is not None else 0.1
+    # --beta 指定時はEMAを自動でOFF（--no-emaでも明示的にOFF可）
+    ema_enabled = not args.no_ema and args.beta is None
 
     data_queue: queue.Queue = queue.Queue(maxsize=_QUEUE_MAXSIZE)
     ble_loop_holder: list[asyncio.AbstractEventLoop] = []
@@ -47,7 +52,7 @@ def main() -> None:
     t.start()
 
     try:
-        display.run(data_queue, ema_enabled=not args.no_ema, beta=args.beta)
+        display.run(data_queue, ema_enabled=ema_enabled, beta=beta)
     except KeyboardInterrupt:
         pass
     finally:
