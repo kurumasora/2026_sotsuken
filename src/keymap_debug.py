@@ -62,7 +62,6 @@ def main() -> None:
             data_queue,
             ema_enabled=ema_enabled,
             beta=beta,
-            dwell_ms=500,
             on_confirm=_on_confirm,
         )
     except KeyboardInterrupt:
