@@ -4,7 +4,7 @@ import math
 
 
 class MadgwickFilter:
-    def __init__(self, beta: float = 0.1, sample_rate: float = 30.0):
+    def __init__(self, beta: float = 0.1, sample_rate: float = 60.0):
         self._beta = beta
         self._dt = 1.0 / sample_rate
         self._q0, self._q1, self._q2, self._q3 = 1.0, 0.0, 0.0, 0.0
